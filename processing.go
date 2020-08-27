@@ -19,8 +19,11 @@ type Grab struct {
 
 // ScanTarget is the host that will be scanned
 type ScanTarget struct {
-	IP       net.IP
-	Domain   string
+	IP     net.IP
+	Domain string
+	// Modifier can be used to specify modifier functions to be run inside
+	// scanners; e.g. a modifier func that accepts a *http.Request that modifies
+	// (add headers, modify Host, etc.) an http request before it is sent out in the http module.
 	Modifier interface{}
 	Tag      string
 	Port     *uint

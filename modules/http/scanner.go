@@ -18,8 +18,10 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zmap/zcrypto/tls"
 	"github.com/zmap/zgrab2"
 	"github.com/zmap/zgrab2/lib/http"
+	"golang.org/x/net/html/charset"
 )
 
 var (
@@ -53,6 +55,11 @@ type Flags struct {
 	// UseHTTPS causes the first request to be over TLS, without requiring a
 	// redirect to HTTPS. It does not change the port used for the connection.
 	UseHTTPS bool `long:"use-https" description:"Perform an HTTPS connection on the initial host"`
+
+	// RedirectsSucceed causes the ErrTooManRedirects error to be suppressed
+	RedirectsSucceed bool `long:"redirects-succeed" description:"Redirects are always a success, even if max-redirects is exceeded"`
+
+	OverrideSH bool `long:"override-sig-hash" description:"Override the default SignatureAndHashes TLS option with more expansive default"`
 }
 
 // A Results object is returned by the HTTP module's Scanner.Scan()
@@ -96,6 +103,11 @@ func (module *Module) NewFlags() interface{} {
 // NewScanner returns a new instance Scanner instance.
 func (module *Module) NewScanner() zgrab2.Scanner {
 	return new(Scanner)
+}
+
+// Description returns an overview of this module.
+func (module *Module) Description() string {
+	return "Send an HTTP request and read the response, optionally following redirects."
 }
 
 // Validate performs any needed validation on the arguments
@@ -207,10 +219,26 @@ func (scan *scan) getTLSDialer(t *zgrab2.ScanTarget) func(net, addr string) (net
 		if err != nil {
 			return nil, err
 		}
-		tlsConn, err := scan.scanner.config.TLSFlags.GetTLSConnectionForTarget(outer, t)
+
+		cfg, err := scan.scanner.config.TLSFlags.GetTLSConfigForTarget(t)
 		if err != nil {
 			return nil, err
 		}
+
+		if scan.scanner.config.OverrideSH {
+			cfg.SignatureAndHashes = []tls.SigAndHash{
+				{0x01, 0x04}, // rsa, sha256
+				{0x03, 0x04}, // ecdsa, sha256
+				{0x01, 0x02}, // rsa, sha1
+				{0x03, 0x02}, // ecdsa, sha1
+				{0x01, 0x04}, // rsa, sha256
+				{0x01, 0x05}, // rsa, sha384
+				{0x01, 0x06}, // rsa, sha512
+			}
+		}
+
+		tlsConn := scan.scanner.config.TLSFlags.GetWrappedConnection(outer, cfg)
+
 		// lib/http/transport.go fills in the TLSLog in the http.Request instance(s)
 		err = tlsConn.Handshake()
 		return tlsConn, err
@@ -289,7 +317,7 @@ func getHTTPURL(https bool, host string, port uint16, endpoint string) string {
 }
 
 // NewHTTPScan gets a new Scan instance for the given target
-func (scanner *Scanner) newHTTPScan(t *zgrab2.ScanTarget) *scan {
+func (scanner *Scanner) newHTTPScan(t *zgrab2.ScanTarget, useHTTPS bool) *scan {
 	ret := scan{
 		scanner: scanner,
 		target:  t,
@@ -320,7 +348,7 @@ func (scanner *Scanner) newHTTPScan(t *zgrab2.ScanTarget) *scan {
 	} else {
 		port = uint16(scanner.config.BaseFlags.Port)
 	}
-	ret.url = getHTTPURL(scanner.config.UseHTTPS, host, port, scanner.config.Endpoint)
+	ret.url = getHTTPURL(useHTTPS, host, port, scanner.config.Endpoint)
 
 	return &ret
 }
@@ -357,6 +385,9 @@ func (scan *scan) Grab() *zgrab2.ScanError {
 		case ErrRedirLocalhost:
 			break
 		case ErrTooManyRedirects:
+			if scan.scanner.config.RedirectsSucceed {
+				return nil
+			}
 			return zgrab2.NewScanError(zgrab2.SCAN_APPLICATION_ERROR, err)
 		default:
 			return zgrab2.DetectScanError(err)
@@ -370,7 +401,22 @@ func (scan *scan) Grab() *zgrab2.ScanError {
 		readLen = resp.ContentLength
 	}
 	io.CopyN(buf, resp.Body, readLen)
-	scan.results.Response.BodyText = buf.String()
+	bufAsString := buf.String()
+
+	// do best effort attempt to determine the response's encoding
+	// ignore the certainty and just go with it
+	encoder, _, _ := charset.DetermineEncoding(buf.Bytes(), resp.Header.Get("content_type"))
+	decoder := encoder.NewDecoder()
+
+	decoded, decErr := decoder.String(bufAsString)
+
+	// if the decoder errors out just use the buffer as a string
+	if decErr == nil {
+		scan.results.Response.BodyText = decoded
+	} else {
+		scan.results.Response.BodyText = bufAsString
+	}
+
 	if len(scan.results.Response.BodyText) > 0 {
 		m := sha256.New()
 		m.Write(buf.Bytes())
@@ -384,14 +430,13 @@ func (scan *scan) Grab() *zgrab2.ScanError {
 // the target. If the scanner is configured to follow redirects, this may entail
 // multiple TCP connections to hosts other than target.
 func (scanner *Scanner) Scan(t zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{}, error) {
-	scan := scanner.newHTTPScan(&t)
+	scan := scanner.newHTTPScan(&t, scanner.config.UseHTTPS)
 	defer scan.Cleanup()
 	err := scan.Grab()
 	if err != nil {
 		if scanner.config.RetryHTTPS && !scanner.config.UseHTTPS {
 			scan.Cleanup()
-			scanner.config.UseHTTPS = true
-			retry := scanner.newHTTPScan(&t)
+			retry := scanner.newHTTPScan(&t, true)
 			defer retry.Cleanup()
 			retryError := retry.Grab()
 			if retryError != nil {
@@ -409,7 +454,7 @@ func (scanner *Scanner) Scan(t zgrab2.ScanTarget) (zgrab2.ScanStatus, interface{
 func RegisterModule() {
 	var module Module
 
-	_, err := zgrab2.AddCommand("http", "HTTP Banner Grab", "Grab a banner over HTTP", 80, &module)
+	_, err := zgrab2.AddCommand("http", "HTTP Banner Grab", module.Description(), 80, &module)
 	if err != nil {
 		log.Fatal(err)
 	}

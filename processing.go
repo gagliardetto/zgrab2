@@ -19,10 +19,11 @@ type Grab struct {
 
 // ScanTarget is the host that will be scanned
 type ScanTarget struct {
-	IP     net.IP
-	Domain string
-	Tag    string
-	Port   *uint
+	IP       net.IP
+	Domain   string
+	Modifier interface{}
+	Tag      string
+	Port     *uint
 }
 
 func (target ScanTarget) String() string {

@@ -325,6 +325,8 @@ func (scanner *Scanner) newHTTPScan(t *zgrab2.ScanTarget) *scan {
 	return &ret
 }
 
+type HTTPRequestModifier func(*http.Request)
+
 // Grab performs the HTTP scan -- implementation taken from zgrab/zlib/grabber.go
 func (scan *scan) Grab() *zgrab2.ScanError {
 	// TODO: Allow body?
@@ -334,6 +336,12 @@ func (scan *scan) Grab() *zgrab2.ScanError {
 	}
 	// TODO: Headers from input?
 	request.Header.Set("Accept", "*/*")
+
+	if scan.target.Modifier != nil {
+		if modifier, ok := scan.target.Modifier.(HTTPRequestModifier); ok {
+			modifier(request)
+		}
+	}
 	resp, err := scan.client.Do(request)
 	if resp != nil && resp.Body != nil {
 		defer resp.Body.Close()

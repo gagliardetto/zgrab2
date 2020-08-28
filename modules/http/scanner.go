@@ -353,6 +353,7 @@ func (scanner *Scanner) newHTTPScan(t *zgrab2.ScanTarget, useHTTPS bool) *scan {
 	return &ret
 }
 
+// HTTPRequestModifier is the function type that is run right before sending out an HTTP request.
 type HTTPRequestModifier func(*http.Request)
 
 // Grab performs the HTTP scan -- implementation taken from zgrab/zlib/grabber.go

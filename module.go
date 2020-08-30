@@ -20,6 +20,9 @@ type Scanner interface {
 	// Protocol returns the protocol identifier for the scan.
 	Protocol() string
 
+	// DefaultPort returns the default port if any.
+	DefaultPort() uint16
+
 	// Scan connects to a host. The result should be JSON-serializable
 	Scan(t ScanTarget) (ScanStatus, interface{}, error)
 }
@@ -28,6 +31,8 @@ type Scanner interface {
 type ScanResponse struct {
 	// Status is required for all responses.
 	Status ScanStatus `json:"status"`
+
+	Port uint16 `json:"port"`
 
 	// Protocol is the identifier if the protocol that did the scan. In the case of a complex scan, this may differ from
 	// the scan name.

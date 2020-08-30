@@ -171,6 +171,12 @@ func (scanner *Scanner) InitPerSender(senderID int) error {
 	return nil
 }
 
+// DefaultPort returns the default port setting that the scanner was
+// initialized with in the config BaseFlags.
+func (scanner *Scanner) DefaultPort() uint16 {
+	return uint16(scanner.config.BaseFlags.Port)
+}
+
 // GetName returns the Scanner name defined in the Flags.
 func (scanner *Scanner) GetName() string {
 	return scanner.config.Name
@@ -214,12 +220,12 @@ func VerifySMTPContents(banner string) (zgrab2.ScanStatus, int) {
 	case err == nil && (code < 200 || code >= 300):
 		return zgrab2.SCAN_APPLICATION_ERROR, code
 	case err == nil,
-	     strings.Contains(banner, "STMP"),
-	     strings.Contains(lowerBanner, "blacklist"),
-	     strings.Contains(lowerBanner, "abuse"),
-	     strings.Contains(lowerBanner, "rbl"),
-	     strings.Contains(lowerBanner, "spamhaus"),
-	     strings.Contains(lowerBanner, "relay"):
+		strings.Contains(banner, "STMP"),
+		strings.Contains(lowerBanner, "blacklist"),
+		strings.Contains(lowerBanner, "abuse"),
+		strings.Contains(lowerBanner, "rbl"),
+		strings.Contains(lowerBanner, "spamhaus"),
+		strings.Contains(lowerBanner, "relay"):
 		return zgrab2.SCAN_SUCCESS, 0
 	default:
 		return zgrab2.SCAN_PROTOCOL_ERROR, 0

@@ -26,8 +26,8 @@
 package pop3
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -151,6 +151,12 @@ func (scanner *Scanner) GetTrigger() string {
 	return scanner.config.Trigger
 }
 
+// DefaultPort returns the default port setting that the scanner was
+// initialized with in the config BaseFlags.
+func (scanner *Scanner) DefaultPort() uint16 {
+	return uint16(scanner.config.BaseFlags.Port)
+}
+
 // Protocol returns the protocol identifier of the scan.
 func (scanner *Scanner) Protocol() string {
 	return "pop3"
@@ -170,14 +176,14 @@ func VerifyPOP3Contents(banner string) zgrab2.ScanStatus {
 	case strings.HasPrefix(banner, "-ERR "):
 		return zgrab2.SCAN_APPLICATION_ERROR
 	case strings.HasPrefix(banner, "+OK "),
-	     strings.Contains(banner, "POP3"),
-	     // These are rare for POP3 if they happen at all,
-	     // But it won't hurt to check just in case as a backup
-	     strings.Contains(lowerBanner, "blacklist"),
-	     strings.Contains(lowerBanner, "abuse"),
-	     strings.Contains(lowerBanner, "rbl"),
-	     strings.Contains(lowerBanner, "spamhaus"),
-	     strings.Contains(lowerBanner, "relay"):
+		strings.Contains(banner, "POP3"),
+		// These are rare for POP3 if they happen at all,
+		// But it won't hurt to check just in case as a backup
+		strings.Contains(lowerBanner, "blacklist"),
+		strings.Contains(lowerBanner, "abuse"),
+		strings.Contains(lowerBanner, "rbl"),
+		strings.Contains(lowerBanner, "spamhaus"),
+		strings.Contains(lowerBanner, "relay"):
 		return zgrab2.SCAN_SUCCESS
 	default:
 		return zgrab2.SCAN_PROTOCOL_ERROR

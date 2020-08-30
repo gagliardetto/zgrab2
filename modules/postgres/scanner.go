@@ -310,6 +310,12 @@ func (s *Scanner) InitPerSender(senderID int) error {
 	return nil
 }
 
+// DefaultPort returns the default port setting that the scanner was
+// initialized with in the config BaseFlags.
+func (scanner *Scanner) DefaultPort() uint16 {
+	return uint16(scanner.Config.BaseFlags.Port)
+}
+
 // Protocol returns the protocol identifer for the scanner.
 func (s *Scanner) Protocol() string {
 	return "postgres"

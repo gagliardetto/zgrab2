@@ -23,8 +23,8 @@
 package imap
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
 
 	"strings"
 
@@ -127,6 +127,12 @@ func (scanner *Scanner) InitPerSender(senderID int) error {
 	return nil
 }
 
+// DefaultPort returns the default port setting that the scanner was
+// initialized with in the config BaseFlags.
+func (scanner *Scanner) DefaultPort() uint16 {
+	return uint16(scanner.config.BaseFlags.Port)
+}
+
 // GetName returns the Scanner name defined in the Flags.
 func (scanner *Scanner) GetName() string {
 	return scanner.config.Name
@@ -154,18 +160,18 @@ func VerifyIMAPContents(banner string) zgrab2.ScanStatus {
 	lowerBanner := strings.ToLower(banner)
 	switch {
 	case strings.HasPrefix(banner, "* NO"),
-	     strings.HasPrefix(banner, "* BAD"):
+		strings.HasPrefix(banner, "* BAD"):
 		return zgrab2.SCAN_APPLICATION_ERROR
 	case strings.HasPrefix(banner, "* OK"),
-	     strings.HasPrefix(banner, "* PREAUTH"),
-	     strings.HasPrefix(banner, "* BYE"),
-	     strings.HasPrefix(banner, "* OKAY"),
-	     strings.Contains(banner, "IMAP"),
-	     strings.Contains(lowerBanner, "blacklist"),
-	     strings.Contains(lowerBanner, "abuse"),
-	     strings.Contains(lowerBanner, "rbl"),
-	     strings.Contains(lowerBanner, "spamhaus"),
-	     strings.Contains(lowerBanner, "relay"):
+		strings.HasPrefix(banner, "* PREAUTH"),
+		strings.HasPrefix(banner, "* BYE"),
+		strings.HasPrefix(banner, "* OKAY"),
+		strings.Contains(banner, "IMAP"),
+		strings.Contains(lowerBanner, "blacklist"),
+		strings.Contains(lowerBanner, "abuse"),
+		strings.Contains(lowerBanner, "rbl"),
+		strings.Contains(lowerBanner, "spamhaus"),
+		strings.Contains(lowerBanner, "relay"):
 		return zgrab2.SCAN_SUCCESS
 	default:
 		return zgrab2.SCAN_PROTOCOL_ERROR

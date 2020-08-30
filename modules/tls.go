@@ -63,6 +63,12 @@ func (s *TLSScanner) GetTrigger() string {
 	return s.config.Trigger
 }
 
+// DefaultPort returns the default port setting that the scanner was
+// initialized with in the config BaseFlags.
+func (scanner *TLSScanner) DefaultPort() uint16 {
+	return uint16(scanner.config.BaseFlags.Port)
+}
+
 func (s *TLSScanner) InitPerSender(senderID int) error {
 	return nil
 }

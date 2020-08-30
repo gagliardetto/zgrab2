@@ -130,6 +130,12 @@ func (s *Scanner) InitPerSender(senderID int) error {
 	return nil
 }
 
+// DefaultPort returns the default port setting that the scanner was
+// initialized with in the config BaseFlags.
+func (scanner *Scanner) DefaultPort() uint16 {
+	return uint16(scanner.config.BaseFlags.Port)
+}
+
 // GetName returns the configured name for the Scanner.
 func (s *Scanner) GetName() string {
 	return s.config.Name

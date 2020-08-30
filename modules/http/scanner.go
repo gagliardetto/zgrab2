@@ -147,6 +147,12 @@ func (scanner *Scanner) GetTrigger() string {
 	return scanner.config.Trigger
 }
 
+// DefaultPort returns the default port setting that the scanner was
+// initialized with in the config BaseFlags.
+func (scanner *Scanner) DefaultPort() uint16 {
+	return uint16(scanner.config.BaseFlags.Port)
+}
+
 // Cleanup closes any connections that have been opened during the scan
 func (scan *scan) Cleanup() {
 	if scan.connections != nil {
